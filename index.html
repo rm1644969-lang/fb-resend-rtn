@@ -343,8 +343,9 @@
 
     <div class="conn-bar">
       <button id="pwaInstallBtn" class="btn btn-sm btn-info" style="display:none;" type="button">📲 Install App</button>
-      <input id="adminPwd" type="password" placeholder="Password (admin123456)" style="width: 170px;" />
+      <input id="adminPwd" type="password" placeholder="Admin Password" style="width: 150px;" />
       <button id="connectBtn" class="btn btn-primary" type="button">Unlock &amp; Sync</button>
+      <button id="lockBtn" class="btn btn-sm btn-ghost" type="button" style="display:none;" title="Lock Control Center">🔒 Lock</button>
       <label class="checkbox-lbl" title="Auto-refresh every 20s">
         <input id="autoRefresh" type="checkbox" checked />
         Auto (20s)
@@ -356,7 +357,38 @@
     </div>
   </header>
 
-  <main class="container">
+  <!-- 🔒 ADMIN SECURITY GATE MODAL -->
+  <div id="loginModal" style="display:none; position:fixed; inset:0; background:rgba(7, 11, 20, 0.93); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); z-index:9999; align-items:center; justify-content:center; padding:18px;">
+    <div class="card" style="width:100%; max-width:420px; border:1px solid rgba(0, 240, 255, 0.45); box-shadow:0 0 50px rgba(0, 240, 255, 0.18); text-align:center; padding:32px 26px;">
+      <div style="width:64px; height:64px; border-radius:50%; background:rgba(0, 240, 255, 0.12); border:2px solid var(--cyan); display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:28px;">
+        🛡️
+      </div>
+      <h2 style="justify-content:center; font-size:18px; margin:0 0 6px; font-weight:800; color:#FFFFFF;">
+        RTN SUPPORT — Admin Gate
+      </h2>
+      <p class="muted-small" style="margin:0 0 20px; color:#94A3B8;">
+        Protected Control Center. Enter Admin Password to access.
+      </p>
+
+      <form id="modalLoginForm">
+        <div style="margin-bottom:14px; text-align:left;">
+          <input id="modalPwdInput" type="password" placeholder="Enter Admin Password..." style="height:44px; font-size:15px; text-align:center; letter-spacing:0.18em;" autofocus />
+        </div>
+        <div id="modalLoginError" style="display:none; color:#F87171; font-size:12px; margin-bottom:12px; font-weight:600;">
+          ⚠️ Incorrect Admin Password. Access Denied.
+        </div>
+        <button id="modalLoginBtn" type="submit" class="btn btn-primary" style="width:100%; height:42px; font-size:14px; font-weight:700;">
+          🔓 Unlock Control Center
+        </button>
+      </form>
+
+      <div class="muted-small" style="margin-top:20px; color:#64748B;">
+        Developer: RATAN MAJUMDER • RTN SUPPORT
+      </div>
+    </div>
+  </div>
+
+  <main class="container" id="mainContainer">
     <!-- Firebase Status Helper Box -->
     <section id="setupBox" class="setup-box">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
@@ -396,6 +428,32 @@
       <div class="card">
         <div class="stat-label">Suspended / Expired</div>
         <div id="statSuspended" class="stat-val" style="color: var(--red);">0</div>
+      </div>
+    </section>
+
+    <!-- 🛑 GLOBAL MASTER KILL SWITCH / EMERGENCY MAINTENANCE CONTROLLER -->
+    <section id="masterControlCard" class="card" style="margin-bottom: 22px; border: 1px solid rgba(16, 185, 129, 0.4); background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(14, 22, 38, 0.95));">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div id="masterStatusBadge" style="width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:24px; background:rgba(16, 185, 129, 0.2); border:1px solid #10B981; color:#10B981;">
+            ⚡
+          </div>
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <h2 style="margin:0; font-size:16px;">MASTER SYSTEM CONTROL &amp; GLOBAL KILL-SWITCH</h2>
+              <span id="masterStatusText" class="badge-ver" style="background:rgba(16, 185, 129, 0.2); color:#10B981; border-color:#10B981;">🟢 ALL TOOLS ACTIVE (ONLINE)</span>
+            </div>
+            <p id="masterDesc" class="muted-small" style="margin:4px 0 0; color:#cbd5e1;">
+              Admin can pause/shut down all members' tools with 1 click. If set to OFF, no tool will run anywhere on any PC.
+            </p>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <input id="masterMaintMsg" type="text" placeholder="Custom message for members..." style="width:280px; font-size:12px;" value="Server Maintenance in progress. Contact Admin @ratanmajumder" />
+          <button id="toggleMasterBtn" class="btn btn-danger" type="button" style="height:38px; font-weight:700;">
+            🛑 PAUSE / KILL ALL TOOLS
+          </button>
+        </div>
       </div>
     </section>
 
@@ -505,7 +563,7 @@
 
     const FIREBASE_PROJECT_ID = "fb-resend-rtn";
     const FIREBASE_API_KEY = "AIzaSyB0vkSB4d_f_uXuaoCJb5ilQGTUf9jsr8s";
-    const PANEL_ADMIN_PASS = "admin123456";
+    const PANEL_ADMIN_PASS = String.fromCharCode(64, 49, 50, 51, 51, 50, 49, 64);
     const SIGN_SECRET = "AT_FB_OTP_2026_!9X#K7mQ_SECURE_SIGN_V2";
 
     // PWA Service Worker Registration
@@ -650,6 +708,18 @@
       statusFilter: document.getElementById("statusFilter"),
       refreshBtn: document.getElementById("refreshBtn"),
       licTableBody: document.getElementById("licTableBody"),
+      masterControlCard: document.getElementById("masterControlCard"),
+      masterStatusBadge: document.getElementById("masterStatusBadge"),
+      masterStatusText: document.getElementById("masterStatusText"),
+      masterDesc: document.getElementById("masterDesc"),
+      masterMaintMsg: document.getElementById("masterMaintMsg"),
+      toggleMasterBtn: document.getElementById("toggleMasterBtn"),
+      lockBtn: document.getElementById("lockBtn"),
+      loginModal: document.getElementById("loginModal"),
+      modalLoginForm: document.getElementById("modalLoginForm"),
+      modalPwdInput: document.getElementById("modalPwdInput"),
+      modalLoginError: document.getElementById("modalLoginError"),
+      mainContainer: document.getElementById("mainContainer"),
     };
 
     const FS_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/licenses`;
@@ -658,7 +728,7 @@
     let lastCreatedFull = "";
     let timerId = null;
 
-    els.adminPwd.value = sessionStorage.getItem("at_admin_pwd") || PANEL_ADMIN_PASS;
+    els.adminPwd.value = sessionStorage.getItem("at_admin_pwd") || "";
 
     function escapeHtml(str) {
       return String(str ?? "")
@@ -670,7 +740,46 @@
     }
 
     function isPanelUnlocked() {
-      return els.adminPwd.value === PANEL_ADMIN_PASS;
+      const p = (els.adminPwd.value || sessionStorage.getItem("at_admin_pwd") || "").trim();
+      return p === PANEL_ADMIN_PASS;
+    }
+
+    function checkGateModal() {
+      const unlocked = isPanelUnlocked();
+      if (els.loginModal) {
+        els.loginModal.style.display = unlocked ? "none" : "flex";
+      }
+      if (els.lockBtn) {
+        els.lockBtn.style.display = unlocked ? "inline-flex" : "none";
+      }
+      if (els.mainContainer) {
+        els.mainContainer.style.filter = unlocked ? "none" : "blur(8px)";
+        els.mainContainer.style.pointerEvents = unlocked ? "auto" : "none";
+      }
+    }
+
+    function handleModalLogin() {
+      const val = (els.modalPwdInput.value || "").trim();
+      if (val === PANEL_ADMIN_PASS) {
+        sessionStorage.setItem("at_admin_pwd", val);
+        els.adminPwd.value = val;
+        els.modalLoginError.style.display = "none";
+        checkGateModal();
+        loadLicenses(false);
+      } else {
+        els.modalLoginError.style.display = "block";
+        els.modalPwdInput.value = "";
+        els.modalPwdInput.focus();
+      }
+    }
+
+    function lockPanel() {
+      sessionStorage.removeItem("at_admin_pwd");
+      els.adminPwd.value = "";
+      if (els.modalPwdInput) els.modalPwdInput.value = "";
+      if (els.modalLoginError) els.modalLoginError.style.display = "none";
+      setConnState("err", "Locked");
+      checkGateModal();
     }
 
     function setConnState(state, text) {
@@ -821,17 +930,21 @@
 
     async function loadLicenses(silent = false) {
       if (!isPanelUnlocked()) {
-        setConnState("err", "Invalid Panel Password");
-        if (!silent) showBanner("error", "Enter valid Admin Panel Password (default: admin123456).");
+        setConnState("err", "Panel Locked");
+        if (!silent) showBanner("error", "Incorrect Admin Password. Access Denied.");
+        checkGateModal();
         return;
       }
-      sessionStorage.setItem("at_admin_pwd", els.adminPwd.value);
+      sessionStorage.setItem("at_admin_pwd", els.adminPwd.value.trim());
+      checkGateModal();
 
       try {
         const data = await fsFetch(`${FS_BASE}?pageSize=300`, { method: "GET" });
         els.setupBox.classList.remove("show");
-        const docs = Array.isArray(data.documents) ? data.documents : [];
+        const rawDocs = Array.isArray(data.documents) ? data.documents : [];
+        const docs = rawDocs.filter((d) => !d.name.endsWith("_GLOBAL_CONFIG_"));
         cachedLicenses = docs.map(parseFsDoc).sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+        await loadGlobalConfig();
 
         const total = cachedLicenses.length;
         const active = cachedLicenses.filter((l) => l.status === "active" && !l.is_expired).length;
@@ -852,6 +965,95 @@
         els.setupReason.textContent = err.message;
         els.setupBox.classList.add("show");
         if (!silent) showBanner("error", `Firebase error: ${err.message}`);
+      }
+    }
+
+    function updateMasterSwitchUI(isPaused, msg) {
+      if (!els.masterControlCard) return;
+      els.masterControlCard.dataset.paused = isPaused ? "true" : "false";
+      if (isPaused) {
+        els.masterControlCard.style.borderColor = "rgba(239, 68, 68, 0.8)";
+        els.masterControlCard.style.background = "linear-gradient(135deg, rgba(239, 68, 68, 0.22), rgba(14, 22, 38, 0.95))";
+        els.masterStatusBadge.style.borderColor = "#EF4444";
+        els.masterStatusBadge.style.color = "#EF4444";
+        els.masterStatusBadge.style.background = "rgba(239, 68, 68, 0.25)";
+        els.masterStatusBadge.textContent = "🛑";
+        els.masterStatusText.textContent = "🔴 ALL TOOLS PAUSED / LOCKED (OFF)";
+        els.masterStatusText.style.background = "rgba(239, 68, 68, 0.25)";
+        els.masterStatusText.style.color = "#FCA5A5";
+        els.masterStatusText.style.borderColor = "#EF4444";
+        els.toggleMasterBtn.className = "btn btn-ok";
+        els.toggleMasterBtn.textContent = "🟢 RESUME / ACTIVATE ALL TOOLS";
+        if (msg) els.masterMaintMsg.value = msg;
+      } else {
+        els.masterControlCard.style.borderColor = "rgba(16, 185, 129, 0.4)";
+        els.masterControlCard.style.background = "linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(14, 22, 38, 0.95))";
+        els.masterStatusBadge.style.borderColor = "#10B981";
+        els.masterStatusBadge.style.color = "#10B981";
+        els.masterStatusBadge.style.background = "rgba(16, 185, 129, 0.2)";
+        els.masterStatusBadge.textContent = "⚡";
+        els.masterStatusText.textContent = "🟢 ALL TOOLS ACTIVE (ONLINE)";
+        els.masterStatusText.style.background = "rgba(16, 185, 129, 0.2)";
+        els.masterStatusText.style.color = "#6EE7B7";
+        els.masterStatusText.style.borderColor = "#10B981";
+        els.toggleMasterBtn.className = "btn btn-danger";
+        els.toggleMasterBtn.textContent = "🛑 PAUSE / KILL ALL TOOLS";
+      }
+    }
+
+    async function loadGlobalConfig() {
+      try {
+        const doc = await fsFetch(`${FS_BASE}/_GLOBAL_CONFIG_`, { method: "GET" });
+        const f = doc.fields || {};
+        const killSwitch = (f.kill_switch && f.kill_switch.stringValue) || "OFF";
+        const status = (f.system_status && f.system_status.stringValue) || "ACTIVE";
+        const msg = (f.maintenance_message && f.maintenance_message.stringValue) || "Server is under maintenance. Contact Admin @ratanmajumder";
+        updateMasterSwitchUI(killSwitch === "ON" || status !== "ACTIVE", msg);
+      } catch (e) {
+        updateMasterSwitchUI(false, "Server is under maintenance. Contact Admin @ratanmajumder");
+      }
+    }
+
+    async function toggleMasterKillSwitch() {
+      if (!isPanelUnlocked()) {
+        showBanner("error", "Unlock with panel password first.");
+        return;
+      }
+      const isCurrentlyPaused = els.masterControlCard.dataset.paused === "true";
+      const targetAction = isCurrentlyPaused ? "RESUME / ACTIVATE ALL TOOLS" : "PAUSE / SHUT DOWN ALL TOOLS";
+      const ok = confirm(`⚠️ CRITICAL CONFIRMATION:\n\nAre you sure you want to ${targetAction}?\n\n${isCurrentlyPaused ? "All member client tools will be ALLOWED to connect and run normally." : "All member client tools worldwide will be IMMEDIATELY BLOCKED and terminated in real-time!"}`);
+      if (!ok) return;
+
+      const newStatus = isCurrentlyPaused ? "ACTIVE" : "PAUSED";
+      const newKillSwitch = isCurrentlyPaused ? "OFF" : "ON";
+      const msg = els.masterMaintMsg.value.trim() || "Server is under maintenance. Contact Admin @ratanmajumder";
+
+      try {
+        els.toggleMasterBtn.disabled = true;
+        els.toggleMasterBtn.textContent = "Updating Cloud...";
+        const body = {
+          fields: {
+            system_status: { stringValue: newStatus },
+            kill_switch: { stringValue: newKillSwitch },
+            maintenance_message: { stringValue: msg },
+            updated_at: { stringValue: fmtUtcDateTime(new Date()) }
+          }
+        };
+        await fsFetch(`${FS_BASE}/_GLOBAL_CONFIG_`, {
+          method: "PATCH",
+          body: JSON.stringify(body)
+        });
+        updateMasterSwitchUI(!isCurrentlyPaused, msg);
+        showBanner(
+          isCurrentlyPaused ? "success" : "error",
+          isCurrentlyPaused 
+            ? "🟢 Master System Status: ONLINE! All members can now use the tool." 
+            : "🛑 Master System Status: LOCKED! All member tools are now blocked worldwide."
+        );
+      } catch (err) {
+        showBanner("error", `Failed to toggle Master Switch: ${err.message}`);
+      } finally {
+        els.toggleMasterBtn.disabled = false;
       }
     }
 
@@ -1130,6 +1332,12 @@
     els.retryConnBtn.addEventListener("click", () => loadLicenses(false));
     els.searchBox.addEventListener("input", renderTable);
     els.statusFilter.addEventListener("change", renderTable);
+    els.toggleMasterBtn.addEventListener("click", toggleMasterKillSwitch);
+    els.lockBtn.addEventListener("click", lockPanel);
+    els.modalLoginForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      handleModalLogin();
+    });
 
     function syncAutoRefresh() {
       if (timerId) clearInterval(timerId);
@@ -1142,8 +1350,11 @@
     els.autoRefresh.addEventListener("change", syncAutoRefresh);
 
     // Initial load
+    checkGateModal();
     if (isPanelUnlocked()) {
       loadLicenses(true);
+    } else {
+      setTimeout(() => { if (els.modalPwdInput) els.modalPwdInput.focus(); }, 150);
     }
     syncAutoRefresh();
   </script>
